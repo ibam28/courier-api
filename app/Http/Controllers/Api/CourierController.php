@@ -25,39 +25,39 @@ class CourierController extends Controller
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'search'   => ['nullable', 'string', 'max:120'],
-            'level'    => ['nullable', 'string', 'max:32'],
-            'sort'     => ['nullable', Rule::in(['name', 'created_at'])],
-            'order'    => ['nullable', Rule::in(['asc', 'desc'])],
+            'search' => ['nullable', 'string', 'max:120'],
+            'level' => ['nullable', 'string', 'max:32'],
+            'sort' => ['nullable', Rule::in(['name', 'created_at'])],
+            'order' => ['nullable', Rule::in(['asc', 'desc'])],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'page'     => ['nullable', 'integer', 'min:1'],
+            'page' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $query = Courier::query();
 
         // Search: cocokkan setiap token terhadap nama (semua token harus match)
-        if (!empty($validated['search'])) {
+        if (! empty($validated['search'])) {
             $tokens = preg_split('/\s+/', trim($validated['search']));
             foreach ($tokens as $token) {
                 if ($token === '') {
                     continue;
                 }
-                $query->where('name', 'like', '%' . $token . '%');
+                $query->where('name', 'like', '%'.$token.'%');
             }
         }
 
         // Filter level: ?level=2,3 -> kurir dengan level 2 atau 3
-        if (!empty($validated['level'])) {
+        if (! empty($validated['level'])) {
             $levels = array_filter(array_map('trim', explode(',', $validated['level'])), fn ($v) => $v !== '');
             $levels = array_map('intval', $levels);
             $levels = array_values(array_filter($levels, fn ($v) => $v >= 1 && $v <= 5));
-            if (!empty($levels)) {
+            if (! empty($levels)) {
                 $query->whereIn('level', $levels);
             }
         }
 
         // Sorting: default by name, override dengan ?sort=created_at
-        $sort  = $validated['sort']  ?? 'name';
+        $sort = $validated['sort'] ?? 'name';
         $order = $validated['order'] ?? 'asc';
         $query->orderBy($sort, $order);
 
@@ -88,7 +88,7 @@ class CourierController extends Controller
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors'  => $e->errors(),
+                'errors' => $e->errors(),
             ], 422);
         }
 
@@ -96,7 +96,7 @@ class CourierController extends Controller
 
         return response()->json([
             'message' => 'Courier created',
-            'data'    => $courier,
+            'data' => $courier,
         ], 201);
     }
 
@@ -110,7 +110,7 @@ class CourierController extends Controller
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors'  => $e->errors(),
+                'errors' => $e->errors(),
             ], 422);
         }
 
@@ -118,7 +118,7 @@ class CourierController extends Controller
 
         return response()->json([
             'message' => 'Courier updated',
-            'data'    => $courier->fresh(),
+            'data' => $courier->fresh(),
         ]);
     }
 
@@ -134,8 +134,8 @@ class CourierController extends Controller
         $stillExists = Courier::where('id', $id)->exists();
 
         return response()->json([
-            'message'     => 'Courier deleted',
-            'id'          => $id,
+            'message' => 'Courier deleted',
+            'id' => $id,
             'still_in_db' => $stillExists ? 'yes' : 'no',
         ]);
     }
@@ -153,16 +153,16 @@ class CourierController extends Controller
         }
 
         return $request->validate([
-            'code'          => ['nullable', 'string', 'max:32', $uniqueRule],
-            'name'          => ['required', 'string', 'max:120'],
-            'phone'         => ['nullable', 'string', 'max:32'],
-            'email'         => ['nullable', 'email', 'max:120'],
-            'address'       => ['nullable', 'string', 'max:1000'],
-            'vehicle_type'  => ['nullable', 'string', 'max:32'],
+            'code' => ['nullable', 'string', 'max:32', $uniqueRule],
+            'name' => ['required', 'string', 'max:120'],
+            'phone' => ['nullable', 'string', 'max:32'],
+            'email' => ['nullable', 'email', 'max:120'],
+            'address' => ['nullable', 'string', 'max:1000'],
+            'vehicle_type' => ['nullable', 'string', 'max:32'],
             'vehicle_plate' => ['nullable', 'string', 'max:32'],
-            'level'         => ['required', 'integer', 'between:1,5'],
-            'status'        => ['nullable', 'string', Rule::in(Courier::STATUSES)],
-            'joined_at'     => ['nullable', 'date'],
+            'level' => ['required', 'integer', 'between:1,5'],
+            'status' => ['nullable', 'string', Rule::in(Courier::STATUSES)],
+            'joined_at' => ['nullable', 'date'],
         ]);
     }
 }

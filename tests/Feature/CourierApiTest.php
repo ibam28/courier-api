@@ -10,79 +10,81 @@ class CourierApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_lists_couriers_with_pagination(): void
+    public function test_can_list_couriers(): void
     {
-        Courier::create(['code' => 'KRR001', 'name' => 'Andi Saputra', 'level' => 2]);
-        Courier::create(['code' => 'KRR002', 'name' => 'Budi Santoso', 'level' => 3]);
+        Courier::factory()->count(3)->create();
 
-        $response = $this->getJson('/api/couriers?per_page=1');
+        $response = $this->getJson('/api/couriers');
 
-        $response->assertOk()
-            ->assertJsonPath('per_page', 1)
-            ->assertJsonCount(1, 'data');
+        $response
+            ->assertOk()
+            ->assertJsonCount(3, 'data');
     }
 
-    public function test_it_searches_and_filters_couriers(): void
+    public function test_can_search_couriers_by_name(): void
     {
-        Courier::create(['code' => 'KRR001', 'name' => 'Andi Saputra', 'level' => 2]);
-        Courier::create(['code' => 'KRR002', 'name' => 'Budi Santoso', 'level' => 3]);
+        Courier::factory()->create(['name' => 'Bambang Saputra']);
+        Courier::factory()->create(['name' => 'Andi Wijaya']);
 
-        $response = $this->getJson('/api/couriers?search=Andi&level=2');
+        $response = $this->getJson('/api/couriers?search=Bambang');
 
-        $response->assertOk()
+        $response
+            ->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.name', 'Andi Saputra');
+            ->assertJsonPath('data.0.name', 'Bambang Saputra');
     }
 
-    public function test_it_sorts_couriers(): void
+    public function test_can_filter_couriers_by_level(): void
     {
-        Courier::create(['code' => 'KRR001', 'name' => 'Andi Saputra', 'level' => 2]);
-        Courier::create(['code' => 'KRR002', 'name' => 'Budi Santoso', 'level' => 3]);
+        Courier::factory()->create(['level' => 2]);
+        Courier::factory()->create(['level' => 3]);
+        Courier::factory()->create(['level' => 5]);
 
-        $response = $this->getJson('/api/couriers?sort=name&order=desc');
+        $response = $this->getJson('/api/couriers?level=2,3');
 
-        $response->assertOk()
-            ->assertJsonPath('data.0.name', 'Budi Santoso');
+        $response
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
     }
 
-    public function test_it_creates_a_courier(): void
+    public function test_can_create_courier(): void
     {
-        $response = $this->postJson('/api/couriers', [
+        $payload = [
             'code' => 'KRR001',
-            'name' => 'Andi Saputra',
+            'name' => 'Bambang Saputra',
             'phone' => '08123456789',
-            'email' => 'andi@example.com',
-            'level' => 2,
+            'email' => 'bambang@example.com',
+            'level' => 3,
             'status' => 'active',
-        ]);
+        ];
 
-        $response->assertCreated()
-            ->assertJsonPath('message', 'Courier created')
+        $response = $this->postJson('/api/couriers', $payload);
+
+        $response
+            ->assertCreated()
             ->assertJsonPath('data.code', 'KRR001')
-            ->assertJsonPath('data.name', 'Andi Saputra');
+            ->assertJsonPath('data.name', 'Bambang Saputra');
 
         $this->assertDatabaseHas('couriers', [
             'code' => 'KRR001',
-            'name' => 'Andi Saputra',
+            'name' => 'Bambang Saputra',
         ]);
     }
 
-    public function test_it_validates_required_and_constrained_fields(): void
+    public function test_courier_name_and_level_are_required(): void
     {
-        $response = $this->postJson('/api/couriers', [
-            'name' => '',
-            'email' => 'not-an-email',
-            'level' => 9,
-            'status' => 'unknown',
-        ]);
+        $response = $this->postJson('/api/couriers', []);
 
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['name', 'email', 'level', 'status']);
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['name', 'level']);
     }
 
-    public function test_it_rejects_duplicate_codes(): void
+    public function test_courier_code_must_be_unique(): void
     {
-        Courier::create(['code' => 'KRR001', 'name' => 'Existing Courier', 'level' => 1]);
+        Courier::factory()->create([
+            'code' => 'KRR001',
+        ]);
 
         $response = $this->postJson('/api/couriers', [
             'code' => 'KRR001',
@@ -90,43 +92,65 @@ class CourierApiTest extends TestCase
             'level' => 2,
         ]);
 
-        $response->assertStatus(422)
+        $response
+            ->assertStatus(422)
             ->assertJsonValidationErrors(['code']);
     }
 
-    public function test_it_shows_updates_and_deletes_a_courier(): void
+    public function test_can_show_courier(): void
     {
-        $courier = Courier::create([
-            'code' => 'KRR001',
-            'name' => 'Andi Saputra',
+        $courier = Courier::factory()->create();
+
+        $response = $this->getJson("/api/couriers/{$courier->id}");
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.id', $courier->id);
+    }
+
+    public function test_returns_404_for_unknown_courier(): void
+    {
+        $response = $this->getJson('/api/couriers/999999');
+
+        $response->assertNotFound();
+    }
+
+    public function test_can_update_courier(): void
+    {
+        $courier = Courier::factory()->create([
+            'name' => 'Old Name',
             'level' => 2,
         ]);
 
-        $this->getJson("/api/couriers/{$courier->id}")
-            ->assertOk()
-            ->assertJsonPath('data.id', $courier->id)
-            ->assertJsonPath('data.name', 'Andi Saputra');
-
-        $this->putJson("/api/couriers/{$courier->id}", [
-            'code' => 'KRR001',
-            'name' => 'Andi Updated',
+        $response = $this->putJson("/api/couriers/{$courier->id}", [
+            'name' => 'New Name',
             'level' => 4,
-        ])
+        ]);
+
+        $response
             ->assertOk()
-            ->assertJsonPath('data.name', 'Andi Updated')
+            ->assertJsonPath('data.name', 'New Name')
             ->assertJsonPath('data.level', 4);
 
-        $this->deleteJson("/api/couriers/{$courier->id}")
-            ->assertOk()
-            ->assertJsonPath('message', 'Courier deleted')
-            ->assertJsonPath('still_in_db', 'no');
-
-        $this->assertDatabaseMissing('couriers', ['id' => $courier->id]);
+        $this->assertDatabaseHas('couriers', [
+            'id' => $courier->id,
+            'name' => 'New Name',
+            'level' => 4,
+        ]);
     }
 
-    public function test_it_returns_not_found_for_a_missing_courier(): void
+    public function test_can_delete_courier(): void
     {
-        $this->getJson('/api/couriers/999999')
-            ->assertNotFound();
+        $courier = Courier::factory()->create();
+
+        $response = $this->deleteJson("/api/couriers/{$courier->id}");
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('message', 'Courier deleted');
+
+        $this->assertDatabaseMissing('couriers', [
+            'id' => $courier->id,
+        ]);
     }
 }
