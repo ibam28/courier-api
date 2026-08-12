@@ -302,16 +302,14 @@ For query params on `GET /api/couriers`:
 
 ## Screenshots
 
-Visual references captured from the running app.
+### Courier list page — `/couriers`
 
-<!-- Screenshots will be added here once you provide the files. Example below — uncomment and update paths after you drop the files into ./screenshots/ -->
+The main UI: search box, level filter, sort selector, pagination, and per-row edit/delete.
 
-| What                                                      | File                                          |
-|-----------------------------------------------------------|-----------------------------------------------|
-| Courier list page — default sort                          | `screenshots/couriers-list.png`               |
-| Filtered search — `search=budi+agung`                     | `screenshots/couriers-search.png`             |
-| Filtered by level 2 or 3                                  | `screenshots/couriers-level-filter.png`       |
-| Sort by `created_at desc`                                 | `screenshots/couriers-sort-by-date.png`       |
-| Create modal                                              | `screenshots/couriers-create-modal.png`       |
-| Edit modal prefilled                                      | `screenshots/couriers-edit-modal.png`         |
-| Validation error inside the form                          | `screenshots/couriers-validation-error.png`   |
+![Courier list page](screenshots/couriers-list.png)
+
+### Database inspector — `/admin/db`
+
+Read-only inspector: per-table schema (column, type, nullable, default, PK) plus sample rows.
+
+![Database inspector](screenshots/db-inspector.png)

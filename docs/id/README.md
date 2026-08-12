@@ -302,16 +302,14 @@ Untuk query param di `GET /api/couriers`:
 
 ## Screenshot
 
-Referensi visual hasil capture dari aplikasi yang sedang berjalan.
+### Halaman daftar kurir — `/couriers`
 
-<!-- Screenshot akan ditambahkan di sini setelah Anda menyediakan filenya. Tabel di bawah adalah placeholder. -->
+UI utama: search box, filter level, sort selector, pagination, dan tombol edit/delete per baris.
 
-| Apa                                                  | File                                            |
-|------------------------------------------------------|-------------------------------------------------|
-| Halaman daftar kurir — sort default                  | `screenshots/couriers-list.png`                 |
-| Pencarian terfilter — `search=budi+agung`            | `screenshots/couriers-search.png`               |
-| Filter level 2 atau 3                                | `screenshots/couriers-level-filter.png`         |
-| Urut berdasarkan `created_at desc`                   | `screenshots/couriers-sort-by-date.png`         |
-| Modal Create                                         | `screenshots/couriers-create-modal.png`         |
-| Modal Edit sudah terisi                              | `screenshots/couriers-edit-modal.png`           |
-| Pesan error validasi di dalam form                   | `screenshots/couriers-validation-error.png`     |
+![Halaman daftar kurir](screenshots/couriers-list.png)
+
+### Database inspector — `/admin/db`
+
+Inspektur read-only: schema per tabel (kolom, tipe, nullable, default, PK) plus sample data.
+
+![Database inspector](screenshots/db-inspector.png)
