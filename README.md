@@ -1,5 +1,7 @@
 # Courier API — Laravel 13
 
+[![Tests](https://github.com/ibam28/courier-api/actions/workflows/tests.yml/badge.svg)](https://github.com/ibam28/courier-api/actions/workflows/tests.yml)
+
 REST API + admin UI for courier master data. Built with Laravel 13 + SQLite + Tailwind v4.
 
 🌐 **Documentation languages:**
@@ -13,24 +15,24 @@ REST API + admin UI for courier master data. Built with Laravel 13 + SQLite + Ta
 ```text
 courier-api/
 ├── app/
-│   ├── Http/Controllers/
-│   │   ├── Api/CourierController.php     ← REST CRUD (/api/couriers)
-│   │   └── CourierPageController.php     ← Blade page (/couriers)
-│   └── Models/Courier.php
+│   ├── Http/
+│   │   ├── Controllers/
+│   │   │   ├── Api/AuthController.php        ← /api/auth/{register,login,logout,me}
+│   │   │   ├── Api/CourierController.php     ← REST CRUD (/api/couriers)
+│   │   │   └── CourierPageController.php     ← Blade page (/couriers)
+│   │   └── Requests/Auth/                    ← RegisterRequest, LoginRequest
+│   ├── Models/{Courier,User}.php
+│   └── Providers/AppServiceProvider.php      ← Gate 'manage-courier' (admin)
 ├── database/
-│   ├── migrations/2026_08_12_*_create_couriers_table.php
-│   └── seeders/CourierSeeder.php         ← sample couriers
-├── resources/views/couriers/
-│   ├── index.blade.php                   ← main UI
-│   └── partials/row.blade.php
+│   ├── migrations/                           ← couriers, role column on users
+│   ├── seeders/CourierSeeder.php             ← sample couriers
+│   └── factories/{Courier,User}Factory.php
+├── resources/views/couriers/                 ← main UI
 ├── routes/
-│   ├── api.php                           ← Route::apiResource('couriers', ...)
-│   └── web.php                           ← GET /couriers → Blade page
-├── tests/
-│   └── Feature/CourierApiTest.php        ← API integration tests
-└── docs/
-    ├── en/                               ← English documentation
-    └── id/                               ← Indonesian documentation
+│   ├── api.php                               ← /api/couriers + /api/auth/* (Sanctum)
+│   └── web.php                               ← GET /couriers → Blade
+├── tests/Feature/{Auth,CourierApi}Test.php   ← 35 tests, 106 assertions
+└── .github/workflows/tests.yml               ← CI on every push/PR
 ```
 
 ## Quick start
@@ -41,8 +43,6 @@ cp .env.example .env
 php artisan key:generate
 touch database/database.sqlite
 php artisan migrate --seed --force
-npm install
-npm run build
 php artisan serve --host=127.0.0.1 --port=8000
 ```
 
@@ -50,38 +50,45 @@ Open in your browser:
 
 - **UI**: http://127.0.0.1:8000/couriers
 - **API root**: http://127.0.0.1:8000/api/couriers
+- **Auth**: register/login at `/api/auth/*` to get a Sanctum token
 
 ## Testing
 
-Run the automated test suite with:
-
 ```bash
-php artisan test
+php artisan test           # 35 tests, 106 assertions
+vendor/bin/pint --test     # 0 style issues
 ```
 
-The feature suite covers CRUD operations, validation, duplicate-code protection, filtering, sorting, pagination, and not-found responses.
+Tests cover CRUD, validation, duplicate-code protection, level filter, search, sort, pagination, 404, Sanctum auth (401 for unauth, 403 for staff writes, full register/login/logout/me flow). Each push and PR runs the same suite on GitHub Actions.
 
 ## Tech stack
 
-| Layer        | Choice                                        |
-|--------------|-----------------------------------------------|
-| PHP          | 8.3                                           |
-| Framework    | Laravel 13                                    |
-| Database     | SQLite (swap in `.env` for MySQL/Postgres)    |
-| Frontend     | Blade + Tailwind v4 + Vite (vanilla JS)       |
-| API style    | REST (apiResource controller)                |
+| Layer        | Choice                                                   |
+|--------------|----------------------------------------------------------|
+| PHP          | 8.3                                                      |
+| Framework    | Laravel 13                                               |
+| Auth         | Laravel Sanctum (token-based, role-gated writes)         |
+| Authorization| Gate `manage-courier` — admin only for create/update/delete |
+| Database     | SQLite (swap in `.env` for MySQL/Postgres)               |
+| Frontend     | Blade + Tailwind v4 + Vite (vanilla JS)                  |
+| API style    | REST (apiResource controller) + JSON Form Requests       |
+| CI           | GitHub Actions — PHPUnit + Pint on every push/PR         |
 
 ## Endpoints
 
-All endpoints are under the `/api/couriers` prefix.
+All under the `/api` prefix. All courier endpoints require a Sanctum token; write operations additionally require `role=admin`.
 
-| Method | Path                  | Action           |
-|--------|-----------------------|------------------|
-| GET    | `/api/couriers`       | List + filter    |
-| POST   | `/api/couriers`       | Create           |
-| GET    | `/api/couriers/{id}`  | Detail           |
-| PUT    | `/api/couriers/{id}`  | Update           |
-| DELETE | `/api/couriers/{id}`  | Delete           |
+| Method | Path                       | Auth     | Role      |
+|--------|----------------------------|----------|-----------|
+| POST   | `/api/auth/register`       | public   | —         |
+| POST   | `/api/auth/login`          | public   | —         |
+| POST   | `/api/auth/logout`         | Sanctum  | any       |
+| GET    | `/api/auth/me`             | Sanctum  | any       |
+| GET    | `/api/couriers`            | Sanctum  | any       |
+| POST   | `/api/couriers`            | Sanctum  | **admin** |
+| GET    | `/api/couriers/{id}`       | Sanctum  | any       |
+| PUT    | `/api/couriers/{id}`       | Sanctum  | **admin** |
+| DELETE | `/api/couriers/{id}`       | Sanctum  | **admin** |
 
 ### List query parameters
 
@@ -91,8 +98,6 @@ All endpoints are under the `/api/couriers` prefix.
 - `order` — `asc` or `desc`
 - `per_page` — 1–100 items per page
 - `page` — page number
-
-The `/couriers` Blade page exposes the same CRUD through the JSON API.
 
 ## Schema
 
@@ -112,8 +117,10 @@ The `/couriers` Blade page exposes the same CRUD through the JSON API.
 | `created_at`    | timestamp        | registration date                                |
 | `updated_at`    | timestamp        |                                                  |
 
+Users table additionally has `role` (`admin` or `staff`, default `staff`).
+
 ## License
 
 MIT — do whatever you want.
 
-Copyright (c) 2026 Bambang Saputra Jaya
+Copyright © 2026 Bambang Saputra Jaya. Seluruh hak cipta dilindungi.
