@@ -1,0 +1,27 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            // Role untuk authorization: 'admin' (full CRUD) atau 'staff' (read-only).
+            // Default 'staff' sehingga user yang dibuat sebelum kolom ini ada tetap punya privilege paling sedikit.
+            $table->string('role', 16)->default('staff')->after('password');
+
+            $table->index('role');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropIndex(['role']);
+            $table->dropColumn('role');
+        });
+    }
+};

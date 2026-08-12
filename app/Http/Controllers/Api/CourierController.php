@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Courier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -83,6 +84,8 @@ class CourierController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        Gate::authorize('manage-courier');
+
         try {
             $data = $this->validatePayload($request);
         } catch (ValidationException $e) {
@@ -105,6 +108,8 @@ class CourierController extends Controller
      */
     public function update(Request $request, Courier $courier): JsonResponse
     {
+        Gate::authorize('manage-courier');
+
         try {
             $data = $this->validatePayload($request, $courier->id);
         } catch (ValidationException $e) {
@@ -127,6 +132,8 @@ class CourierController extends Controller
      */
     public function destroy(Courier $courier): JsonResponse
     {
+        Gate::authorize('manage-courier');
+
         $id = $courier->id;
         $courier->delete();
 

@@ -10,6 +10,8 @@ class CourierApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    // --- READ (staff & admin both allowed) ---
+
     public function test_can_list_couriers(): void
     {
         Courier::factory()->count(3)->create();
@@ -47,56 +49,6 @@ class CourierApiTest extends TestCase
             ->assertJsonCount(2, 'data');
     }
 
-    public function test_can_create_courier(): void
-    {
-        $payload = [
-            'code' => 'KRR001',
-            'name' => 'Bambang Saputra',
-            'phone' => '08123456789',
-            'email' => 'bambang@example.com',
-            'level' => 3,
-            'status' => 'active',
-        ];
-
-        $response = $this->actingAsUser()->postJson('/api/couriers', $payload);
-
-        $response
-            ->assertCreated()
-            ->assertJsonPath('data.code', 'KRR001')
-            ->assertJsonPath('data.name', 'Bambang Saputra');
-
-        $this->assertDatabaseHas('couriers', [
-            'code' => 'KRR001',
-            'name' => 'Bambang Saputra',
-        ]);
-    }
-
-    public function test_courier_name_and_level_are_required(): void
-    {
-        $response = $this->actingAsUser()->postJson('/api/couriers', []);
-
-        $response
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['name', 'level']);
-    }
-
-    public function test_courier_code_must_be_unique(): void
-    {
-        Courier::factory()->create([
-            'code' => 'KRR001',
-        ]);
-
-        $response = $this->actingAsUser()->postJson('/api/couriers', [
-            'code' => 'KRR001',
-            'name' => 'Another Courier',
-            'level' => 2,
-        ]);
-
-        $response
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['code']);
-    }
-
     public function test_can_show_courier(): void
     {
         $courier = Courier::factory()->create();
@@ -115,14 +67,50 @@ class CourierApiTest extends TestCase
         $response->assertNotFound();
     }
 
-    public function test_can_update_courier(): void
+    public function test_staff_can_read_couriers(): void
+    {
+        Courier::factory()->count(2)->create();
+
+        // Staff role can list and show
+        $this->actingAsUser()
+            ->getJson('/api/couriers')
+            ->assertOk();
+    }
+
+    // --- WRITE (admin only) ---
+
+    public function test_admin_can_create_courier(): void
+    {
+        $payload = [
+            'code' => 'KRR001',
+            'name' => 'Bambang Saputra',
+            'phone' => '08123456789',
+            'email' => 'bambang@example.com',
+            'level' => 3,
+            'status' => 'active',
+        ];
+
+        $response = $this->actingAsAdmin()->postJson('/api/couriers', $payload);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('data.code', 'KRR001')
+            ->assertJsonPath('data.name', 'Bambang Saputra');
+
+        $this->assertDatabaseHas('couriers', [
+            'code' => 'KRR001',
+            'name' => 'Bambang Saputra',
+        ]);
+    }
+
+    public function test_admin_can_update_courier(): void
     {
         $courier = Courier::factory()->create([
             'name' => 'Old Name',
             'level' => 2,
         ]);
 
-        $response = $this->actingAsUser()->putJson("/api/couriers/{$courier->id}", [
+        $response = $this->actingAsAdmin()->putJson("/api/couriers/{$courier->id}", [
             'name' => 'New Name',
             'level' => 4,
         ]);
@@ -139,11 +127,11 @@ class CourierApiTest extends TestCase
         ]);
     }
 
-    public function test_can_delete_courier(): void
+    public function test_admin_can_delete_courier(): void
     {
         $courier = Courier::factory()->create();
 
-        $response = $this->actingAsUser()->deleteJson("/api/couriers/{$courier->id}");
+        $response = $this->actingAsAdmin()->deleteJson("/api/couriers/{$courier->id}");
 
         $response
             ->assertOk()
@@ -153,6 +141,78 @@ class CourierApiTest extends TestCase
             'id' => $courier->id,
         ]);
     }
+
+    public function test_courier_name_and_level_are_required(): void
+    {
+        $response = $this->actingAsAdmin()->postJson('/api/couriers', []);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['name', 'level']);
+    }
+
+    public function test_courier_code_must_be_unique(): void
+    {
+        Courier::factory()->create([
+            'code' => 'KRR001',
+        ]);
+
+        $response = $this->actingAsAdmin()->postJson('/api/couriers', [
+            'code' => 'KRR001',
+            'name' => 'Another Courier',
+            'level' => 2,
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['code']);
+    }
+
+    // --- AUTHORIZATION: staff cannot write ---
+
+    public function test_staff_cannot_create_courier(): void
+    {
+        $response = $this->actingAsUser()->postJson('/api/couriers', [
+            'name' => 'Bambang Saputra',
+            'level' => 3,
+        ]);
+
+        $response->assertForbidden();
+
+        $this->assertDatabaseCount('couriers', 0);
+    }
+
+    public function test_staff_cannot_update_courier(): void
+    {
+        $courier = Courier::factory()->create(['name' => 'Original']);
+
+        $response = $this->actingAsUser()->putJson("/api/couriers/{$courier->id}", [
+            'name' => 'Hacked',
+            'level' => 5,
+        ]);
+
+        $response->assertForbidden();
+
+        $this->assertDatabaseHas('couriers', [
+            'id' => $courier->id,
+            'name' => 'Original',
+        ]);
+    }
+
+    public function test_staff_cannot_delete_courier(): void
+    {
+        $courier = Courier::factory()->create();
+
+        $response = $this->actingAsUser()->deleteJson("/api/couriers/{$courier->id}");
+
+        $response->assertForbidden();
+
+        $this->assertDatabaseHas('couriers', [
+            'id' => $courier->id,
+        ]);
+    }
+
+    // --- AUTH: still required (no token => 401) ---
 
     public function test_unauthenticated_request_returns_401(): void
     {
