@@ -1,120 +1,96 @@
 # Courier API — Laravel 11
 
-REST API sederhana untuk master data kurir, dibangun dengan Laravel 11 + SQLite.
+REST API + admin UI for courier master data. Built with Laravel 11 + SQLite + Tailwind v4.
 
-## Stack
+🌐 **Documentation languages:**
+- 🇬🇧 [English](./docs/en/README.md) — default
+- 🇮🇩 [Bahasa Indonesia](./docs/id/README.md)
 
-- PHP 8.3
-- Laravel 11
-- SQLite (default; ganti di `.env` untuk MySQL/Postgres)
+---
 
-## Setup
+## Repository structure
+
+```
+courier-api/
+├── app/
+│   ├── Http/Controllers/
+│   │   ├── Api/CourierController.php     ← REST CRUD (/api/couriers)
+│   │   └── CourierPageController.php     ← Blade page (/couriers)
+│   └── Models/Courier.php
+├── database/
+│   ├── migrations/2026_08_12_*_create_couriers_table.php
+│   └── seeders/CourierSeeder.php         ← 8 sample couriers
+├── resources/views/couriers/
+│   ├── index.blade.php                   ← main UI
+│   └── partials/row.blade.php
+├── routes/
+│   ├── api.php                           ← Route::apiResource('couriers', ...)
+│   └── web.php                           ← GET /couriers → Blade page
+└── docs/
+    ├── en/                               ← English documentation
+    └── id/                               ← Indonesian documentation
+```
+
+## Quick start
 
 ```bash
 composer install
 cp .env.example .env
 php artisan key:generate
 touch database/database.sqlite
-php artisan migrate --force
+php artisan migrate --seed --force
+npm install
+npm run build
 php artisan serve --host=127.0.0.1 --port=8000
 ```
 
-API siap di `http://127.0.0.1:8000/api/couriers`.
+Open in your browser:
 
-## Skema tabel `couriers`
+- **UI**: http://127.0.0.1:8000/couriers
+- **API root**: http://127.0.0.1:8000/api/couriers
 
-| Kolom           | Tipe              | Keterangan                                     |
-|-----------------|-------------------|------------------------------------------------|
-| `id`            | bigint (PK)       | auto-increment                                 |
-| `code`          | string(32) unik   | kode internal kurir (mis. KRR001)               |
-| `name`          | string(120)       | nama lengkap kurir (wajib)                     |
-| `phone`         | string(32)        | nomor telepon                                  |
-| `email`         | string(120)       | email                                          |
-| `address`       | text              | alamat                                         |
-| `vehicle_type`  | string(32)        | motor / mobil / van / truck / etc              |
-| `vehicle_plate` | string(32)        | plat nomor kendaraan                           |
-| `level`         | unsignedTinyInt   | 1-5 (1 = junior, 5 = senior) — **wajib**       |
-| `status`        | string(16)        | active / inactive / suspended (default active)  |
-| `joined_at`     | timestamp         | tanggal mulai aktif (bisa beda dari created_at)|
-| `created_at`    | timestamp         | tanggal didaftarkan                             |
-| `updated_at`    | timestamp         |                                                  |
+## Tech stack
 
-## Endpoint
+| Layer        | Choice                                        |
+|--------------|-----------------------------------------------|
+| PHP          | 8.3                                           |
+| Framework    | Laravel 11                                    |
+| Database     | SQLite (swap in `.env` for MySQL/Postgres)    |
+| Frontend     | Blade + Tailwind v4 + Vite (vanilla JS)       |
+| API style    | REST (apiResource controller)                |
 
-Semua endpoint berada di bawah prefix `/api/couriers`.
+## Endpoints
 
-| Method | Path                | Aksi            |
-|--------|---------------------|-----------------|
-| GET    | `/api/couriers`     | List + filter   |
-| POST   | `/api/couriers`     | Create          |
-| GET    | `/api/couriers/{id}`| Detail          |
-| PUT    | `/api/couriers/{id}`| Update          |
-| DELETE | `/api/couriers/{id}`| Hapus           |
+All endpoints are under the `/api/couriers` prefix.
 
-### Query string untuk `GET /api/couriers`
+| Method | Path                  | Action           |
+|--------|-----------------------|------------------|
+| GET    | `/api/couriers`       | List + filter    |
+| POST   | `/api/couriers`       | Create           |
+| GET    | `/api/couriers/{id}`  | Detail           |
+| PUT    | `/api/couriers/{id}`  | Update           |
+| DELETE | `/api/couriers/{id}`  | Delete           |
 
-| Param      | Default    | Keterangan                                                                 |
-|------------|------------|----------------------------------------------------------------------------|
-| `search`   | -          | Pencarian nama. Multi-token via spasi (semua token harus match): `budi+agung` cocok ke `Budiono Hadi Agung`. |
-| `level`    | -          | Daftar level dipisah koma: `level=2,3` → hanya kurir level 2 atau 3.        |
-| `sort`     | `name`     | `name` atau `created_at`.                                                   |
-| `order`    | `asc`      | `asc` atau `desc`.                                                          |
-| `per_page` | 15         | Item per halaman (1-100).                                                   |
-| `page`     | 1          | Nomor halaman.                                                              |
+The `/couriers` Blade page exposes the same CRUD via a small vanilla-JS UI that calls the JSON API.
 
-### Contoh
+## Schema
 
-```bash
-# List default (sort by name asc, pagination 15)
-curl http://127.0.0.1:8000/api/couriers
+| Column          | Type             | Notes                                          |
+|-----------------|------------------|------------------------------------------------|
+| `id`            | bigint PK        | auto-increment                                  |
+| `code`          | string(32) unique| internal code, e.g. `KRR001`                     |
+| `name`          | string(120)      | full name (required)                             |
+| `phone`         | string(32)       | phone number                                     |
+| `email`         | string(120)      | email                                           |
+| `address`       | text             | address                                         |
+| `vehicle_type`  | string(32)       | motor / mobil / van / truck / etc               |
+| `vehicle_plate` | string(32)       | vehicle plate                                    |
+| `level`         | unsignedTinyInt  | 1-5 (1 = junior, 5 = senior) — **required**     |
+| `status`        | string(16)       | active / inactive / suspended (default active)   |
+| `joined_at`     | timestamp        | start date (may differ from `created_at`)        |
+| `created_at`    | timestamp        | registration date                                |
+| `updated_at`    | timestamp        |                                                  |
 
-# Search "budi agung" -> match 'Budiono Hadi Agung'
-curl "http://127.0.0.1:8000/api/couriers?search=budi+agung"
+## License
 
-# Hanya level 2 atau 3, urut dari yang paling baru didaftarkan
-curl "http://127.0.0.1:8000/api/couriers?level=2,3&sort=created_at&order=desc"
-
-# Pagination: 5 per halaman, halaman 2
-curl "http://127.0.0.1:8000/api/couriers?per_page=5&page=2"
-
-# Create
-curl -X POST http://127.0.0.1:8000/api/couriers \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Joko Anwar","level":3,"phone":"08123","code":"KRR010"}'
-
-# Update
-curl -X PUT http://127.0.0.1:8000/api/couriers/1 \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Joko Anwar","level":4}'
-
-# Delete
-curl -X DELETE http://127.0.0.1:8000/api/couriers/1
-```
-
-## Validasi
-
-`POST` dan `PUT` divalidasi:
-
-- `name` wajib, string, max 120
-- `level` wajib, integer 1-5
-- `code` (opsional) harus unik, max 32
-- `email` (opsional) format email valid
-- `status` (opsional) salah satu dari `active` / `inactive` / `suspended`
-
-Response 422 jika gagal:
-
-```json
-{
-  "message": "Validation failed",
-  "errors": {
-    "level": ["The level field must be between 1 and 5."]
-  }
-}
-```
-
-## Response
-
-- `GET /api/couriers` mengembalikan Laravel paginator standar (Laravel auto-generates `links`, `meta`, `next_page_url`, `prev_page_url`).
-- `GET /api/couriers/{id}` mengembalikan `{ "data": { ...courier } }`.
-- `POST/PUT` mengembalikan `{ "message": "...", "data": { ...courier } }`.
-- `DELETE` mengembalikan `{ "message": "Courier deleted", "id": <id>, "still_in_db": "no" }`.
+MIT — do whatever you want.
