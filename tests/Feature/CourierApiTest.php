@@ -14,7 +14,7 @@ class CourierApiTest extends TestCase
     {
         Courier::factory()->count(3)->create();
 
-        $response = $this->getJson('/api/couriers');
+        $response = $this->actingAsUser()->getJson('/api/couriers');
 
         $response
             ->assertOk()
@@ -26,7 +26,7 @@ class CourierApiTest extends TestCase
         Courier::factory()->create(['name' => 'Bambang Saputra']);
         Courier::factory()->create(['name' => 'Andi Wijaya']);
 
-        $response = $this->getJson('/api/couriers?search=Bambang');
+        $response = $this->actingAsUser()->getJson('/api/couriers?search=Bambang');
 
         $response
             ->assertOk()
@@ -40,7 +40,7 @@ class CourierApiTest extends TestCase
         Courier::factory()->create(['level' => 3]);
         Courier::factory()->create(['level' => 5]);
 
-        $response = $this->getJson('/api/couriers?level=2,3');
+        $response = $this->actingAsUser()->getJson('/api/couriers?level=2,3');
 
         $response
             ->assertOk()
@@ -58,7 +58,7 @@ class CourierApiTest extends TestCase
             'status' => 'active',
         ];
 
-        $response = $this->postJson('/api/couriers', $payload);
+        $response = $this->actingAsUser()->postJson('/api/couriers', $payload);
 
         $response
             ->assertCreated()
@@ -73,7 +73,7 @@ class CourierApiTest extends TestCase
 
     public function test_courier_name_and_level_are_required(): void
     {
-        $response = $this->postJson('/api/couriers', []);
+        $response = $this->actingAsUser()->postJson('/api/couriers', []);
 
         $response
             ->assertStatus(422)
@@ -86,7 +86,7 @@ class CourierApiTest extends TestCase
             'code' => 'KRR001',
         ]);
 
-        $response = $this->postJson('/api/couriers', [
+        $response = $this->actingAsUser()->postJson('/api/couriers', [
             'code' => 'KRR001',
             'name' => 'Another Courier',
             'level' => 2,
@@ -101,7 +101,7 @@ class CourierApiTest extends TestCase
     {
         $courier = Courier::factory()->create();
 
-        $response = $this->getJson("/api/couriers/{$courier->id}");
+        $response = $this->actingAsUser()->getJson("/api/couriers/{$courier->id}");
 
         $response
             ->assertOk()
@@ -110,7 +110,7 @@ class CourierApiTest extends TestCase
 
     public function test_returns_404_for_unknown_courier(): void
     {
-        $response = $this->getJson('/api/couriers/999999');
+        $response = $this->actingAsUser()->getJson('/api/couriers/999999');
 
         $response->assertNotFound();
     }
@@ -122,7 +122,7 @@ class CourierApiTest extends TestCase
             'level' => 2,
         ]);
 
-        $response = $this->putJson("/api/couriers/{$courier->id}", [
+        $response = $this->actingAsUser()->putJson("/api/couriers/{$courier->id}", [
             'name' => 'New Name',
             'level' => 4,
         ]);
@@ -143,13 +143,64 @@ class CourierApiTest extends TestCase
     {
         $courier = Courier::factory()->create();
 
-        $response = $this->deleteJson("/api/couriers/{$courier->id}");
+        $response = $this->actingAsUser()->deleteJson("/api/couriers/{$courier->id}");
 
         $response
             ->assertOk()
             ->assertJsonPath('message', 'Courier deleted');
 
         $this->assertDatabaseMissing('couriers', [
+            'id' => $courier->id,
+        ]);
+    }
+
+    public function test_unauthenticated_request_returns_401(): void
+    {
+        Courier::factory()->count(2)->create();
+
+        $response = $this->getJson('/api/couriers');
+
+        $response->assertUnauthorized();
+    }
+
+    public function test_unauthenticated_cannot_create_courier(): void
+    {
+        $response = $this->postJson('/api/couriers', [
+            'name' => 'Bambang Saputra',
+            'level' => 3,
+        ]);
+
+        $response->assertUnauthorized();
+
+        $this->assertDatabaseCount('couriers', 0);
+    }
+
+    public function test_unauthenticated_cannot_update_courier(): void
+    {
+        $courier = Courier::factory()->create();
+
+        $response = $this->putJson("/api/couriers/{$courier->id}", [
+            'name' => 'Hacked Name',
+            'level' => 5,
+        ]);
+
+        $response->assertUnauthorized();
+
+        $this->assertDatabaseHas('couriers', [
+            'id' => $courier->id,
+            'name' => $courier->name,
+        ]);
+    }
+
+    public function test_unauthenticated_cannot_delete_courier(): void
+    {
+        $courier = Courier::factory()->create();
+
+        $response = $this->deleteJson("/api/couriers/{$courier->id}");
+
+        $response->assertUnauthorized();
+
+        $this->assertDatabaseHas('couriers', [
             'id' => $courier->id,
         ]);
     }
