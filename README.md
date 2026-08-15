@@ -2,6 +2,8 @@
 
 [![Tests](https://github.com/ibam28/courier-api/actions/workflows/tests.yml/badge.svg)](https://github.com/ibam28/courier-api/actions/workflows/tests.yml)
 
+Courier API is a Laravel 13-based REST API and admin dashboard for managing courier master data, featuring Sanctum authentication, role-based authorization, CRUD operations, validation, search, filtering, sorting, pagination, automated testing, and GitHub Actions CI/CD.
+
 REST API + admin UI for courier master data. Built with Laravel 13 + SQLite + Tailwind v4.
 
 🌐 **Documentation languages:**
